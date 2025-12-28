@@ -1,0 +1,7 @@
+{
+  "name": "Sky High Popper",
+  "description": "A webcam-controlled balloon shooter game. Pop balloons using hand gestures or your mouse.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

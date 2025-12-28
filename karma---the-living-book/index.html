@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <title>Karma - The Living Book</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Cinzel:wght@400;700&display=swap');
+      
+      body {
+        background-color: #1a1a1a;
+        margin: 0;
+        overflow: hidden;
+        font-family: 'Crimson Text', serif;
+      }
+
+      /* Custom scrollbar for book pages if content overflows */
+      .book-content::-webkit-scrollbar {
+        width: 4px;
+      }
+      .book-content::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .book-content::-webkit-scrollbar-thumb {
+        background-color: #d1c4b0;
+        border-radius: 20px;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

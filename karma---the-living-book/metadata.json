@@ -1,0 +1,7 @@
+{
+  "name": "Karma - The Living Book",
+  "description": "An interactive, gesture-controlled 3D digital book exploring the Jain Philosophy of Karma. Use hand gestures to turn pages.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
