@@ -3,7 +3,6 @@ import WebcamHandler from './components/WebcamHandler';
 import BookView from './components/BookView';
 import { PdfUpload } from './components/PdfUpload';
 import { Level, Point } from './types';
-import { Play } from 'lucide-react';
 
 // Minimal types needed
 interface GameSettings {
@@ -27,6 +26,15 @@ const App: React.FC = () => {
     const [pdfFilename, setPdfFilename] = useState<string | null>(null);
     const [mode, setMode] = useState<'upload' | 'read'>('upload');
 
+    // Screen dimensions
+    const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+    useEffect(() => {
+        const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Webcam handler callback
     const handleWebcamUpdate = (p: Point, pinch: boolean) => {
         setPointer(p);
@@ -44,9 +52,13 @@ const App: React.FC = () => {
             {/* Webcam Handler (Invisible but active) */}
             <WebcamHandler
                 onUpdate={handleWebcamUpdate}
-                onCalibrationComplete={() => { }}
-                isCalibrating={false}
-                calibrationData={{ minX: 0, maxX: 1, minY: 0, maxY: 1 }} // Default calibration
+                calibration={{ minX: 0, maxX: 1, minY: 0, maxY: 1 }} // Default calibration
+                smoothingAmount={0.5}
+                enabled={true}
+                screenWidth={dimensions.width}
+                screenHeight={dimensions.height}
+                inputMode="hands"
+                blinkToFire={false}
             />
 
             {/* Main Content */}
@@ -61,6 +73,10 @@ const App: React.FC = () => {
                             onPdfLoaded={handlePdfLoaded}
                             onCancel={() => { }}
                         />
+                        <div className="mt-8 text-white/50 text-sm text-center">
+                            <p>Enable camera when prompted to use hand gestures</p>
+                            <p>Left hand = Next Page | Right hand = Previous Page</p>
+                        </div>
                     </div>
                 </div>
             )}
