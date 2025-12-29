@@ -26,11 +26,15 @@ const App: React.FC = () => {
     const [pdfFilename, setPdfFilename] = useState<string | null>(null);
     const [mode, setMode] = useState<'upload' | 'read'>('upload');
 
-    // Screen dimensions
+    // Screen dimensions & Mobile detection
     const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
-        const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
+        const handleResize = () => {
+            setDimensions({ width: window.innerWidth, height: window.innerHeight });
+            setIsMobile(window.innerWidth < 768);
+        };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -49,12 +53,12 @@ const App: React.FC = () => {
 
     return (
         <div className="relative w-full h-screen overflow-hidden bg-slate-900">
-            {/* Webcam Handler (Invisible but active) */}
+            {/* Webcam Handler (Active only on desktop or if explicitly enabled) */}
             <WebcamHandler
                 onUpdate={handleWebcamUpdate}
                 calibration={{ minX: 0, maxX: 1, minY: 0, maxY: 1 }} // Default calibration
                 smoothingAmount={0.5}
-                enabled={true}
+                enabled={!isMobile} // Disable camera on mobile by default
                 screenWidth={dimensions.width}
                 screenHeight={dimensions.height}
                 inputMode="hands"
@@ -66,7 +70,7 @@ const App: React.FC = () => {
                 <div className="flex flex-col items-center justify-center h-full">
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 opacity-80" />
                     <div className="z-10 w-full max-w-4xl px-4">
-                        <h1 className="text-5xl font-bold text-white text-center mb-12 drop-shadow-lg">
+                        <h1 className="text-4xl md:text-5xl font-bold text-white text-center mb-8 md:mb-12 drop-shadow-lg">
                             Gesture Book Reader
                         </h1>
                         <PdfUpload
@@ -74,8 +78,14 @@ const App: React.FC = () => {
                             onCancel={() => { }}
                         />
                         <div className="mt-8 text-white/50 text-sm text-center">
-                            <p>Enable camera when prompted to use hand gestures</p>
-                            <p>Left hand = Next Page | Right hand = Previous Page</p>
+                            {isMobile ? (
+                                <p>Swipe left/right to flip pages • Tap edges to navigate</p>
+                            ) : (
+                                <>
+                                    <p>Enable camera when prompted to use hand gestures</p>
+                                    <p>Left hand = Next Page | Right hand = Previous Page</p>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
