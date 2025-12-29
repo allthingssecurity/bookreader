@@ -779,6 +779,7 @@ const App: React.FC = () => {
           isPinching={(gameState === GameState.PLAYING) && (settings.bookRequirePinch ? isPinching : true)}
           onChapterQuiz={() => { /* quizzes disabled in book mode per request */ }}
           bookTitle={pdfFilename || undefined} // Add bookTitle prop
+          isMobile={isMobile}
         />
       )}
       {/* Sync book flip mode global for BookView */}
