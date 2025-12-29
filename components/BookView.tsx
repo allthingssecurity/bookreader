@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Level, Point } from '../types';
 import { BookContent, BookPage } from '../karma---the-living-book/types';
 import { Book3D } from '../karma---the-living-book/components/Book3D';
+import { loadDocxLevels } from '../content/docxLevels';
 
 interface BookViewProps {
   levels?: Level[];
