@@ -132,6 +132,8 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
   const [gesture, setGesture] = useState<{ value: number; id: number }>({ value: 0, id: 0 });
   const [active, setActive] = useState(false);
   const [detectedSide, setDetectedSide] = useState<'left' | 'right' | null>(null);
+  const lastSideRef = useRef<'left' | 'right' | null>(null);
+  const lastSidePostTsRef = useRef<number>(0);
 
   // Flip controller: supports 'swipe' and 'orientation' modes
   const cooldownRef = useRef(0);
@@ -139,6 +141,9 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
   const swipeStateRef = useRef<{ startX: number | null, lastX: number, active: boolean }>({ startX: null, lastX: 0, active: false });
   const holdStartRef = useRef<number | null>(null);
   const latchedRef = useRef(false);
+  const noneSinceRef = useRef<number | null>(null);
+  const pointerXRef = useRef<number>(pointer.x);
+  useEffect(() => { pointerXRef.current = pointer.x; }, [pointer.x]);
   const triggerFlip = (dir: 'next' | 'prev') => {
     console.log(`📖 Triggering flip: ${dir}, current page: ${currentPage}/${book.pages.length - 1}`);
     setGesture(g => ({ value: dir === 'next' ? -190 : 190, id: g.id + 1 }));
@@ -166,7 +171,7 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
         if (!fist) prevOrientRef.current = 'neutral'; else prevOrientRef.current = orient;
       } else if (flipMode === 'swipe') {
         // swipe mode: detect horizontal sweep based on pointer.x
-        const x = pointer.x;
+        const x = pointerXRef.current;
         const side = (window as any).__HAND_SIDE as ('left' | 'right' | null);
         const state = swipeStateRef.current;
         if (!state.active) {
@@ -187,13 +192,23 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
         if (Math.random() < 0.016) {
           console.log(`👋 Hand tracking: raw=${rawSide}`);
         }
-
-        setDetectedSide(rawSide);
+        // Throttle HUD updates to avoid setState every frame
+        const nowTs = performance.now();
+        if (rawSide !== lastSideRef.current || nowTs - lastSidePostTsRef.current > 250) {
+          setDetectedSide(rawSide);
+          lastSideRef.current = rawSide;
+          lastSidePostTsRef.current = nowTs;
+        }
 
         if (!rawSide) {
           holdStartRef.current = null;
-          latchedRef.current = false;
+          // Only re-arm after side has been absent for a short dwell
+          if (noneSinceRef.current == null) noneSinceRef.current = now;
+          if (noneSinceRef.current && now - noneSinceRef.current > 300) {
+            latchedRef.current = false;
+          }
         } else {
+          noneSinceRef.current = null;
           if (!holdStartRef.current) {
             holdStartRef.current = now;
             console.log(`👋 Started hold timer for ${rawSide}`);
@@ -206,15 +221,11 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
           }
 
           if (!latchedRef.current && held >= 200 && now >= cooldownRef.current) {
-            // Mapping: LEFT hand = forward, RIGHT hand = back (reversed because camera mirrors)
+            // Mapping: RIGHT hand = forward, LEFT hand = back
             console.log(`✋ Hand gesture detected: ${rawSide} (held ${Math.round(held)}ms) - Triggering flip`);
 
             // Use triggerFlip to get animation and sound, just like keyboard
-            if (rawSide === 'left') {
-              triggerFlip('next');
-            } else {
-              triggerFlip('prev');
-            }
+            if (rawSide === 'right') triggerFlip('next'); else triggerFlip('prev');
 
             latchedRef.current = true;
             cooldownRef.current = now + 1000;
@@ -226,7 +237,7 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
     (window as any).__BOOK_FLIP_MODE = (window as any).__BOOK_FLIP_MODE || 'hand';
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [pointer.x]);
+  }, []);
 
   // Keyboard support for debugging/testing
   useEffect(() => {
@@ -341,9 +352,9 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
         {detectedSide && (
           <span className="inline-flex items-center gap-2 ml-2 px-2 py-0.5 bg-white/20 rounded-full">
             <span className="text-xs uppercase tracking-wider font-bold opacity-90">
-              {detectedSide === 'left' ? 'Next' : 'Prev'}
+              {detectedSide === 'right' ? 'Next' : 'Prev'}
             </span>
-            <span className="text-xl animate-pulse">{detectedSide === 'left' ? '→' : '←'}</span>
+            <span className="text-xl animate-pulse">{detectedSide === 'right' ? '→' : '←'}</span>
           </span>
         )}
       </div>

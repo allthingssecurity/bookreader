@@ -73,20 +73,24 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
         return;
       }
 
-      // Use the first hand detected
-      const landmarks = results.multiHandLandmarks[0];
-      // Handedness (prefer right if present, else left)
+      // Choose the most confident hand, prefer right if present
+      const anyRes: any = results as any;
+      let chosenIdx = 0;
+      if (anyRes.multiHandedness && anyRes.multiHandedness.length > 1) {
+        const score = (i: number) => Number(anyRes.multiHandedness[i]?.score || 0);
+        const label = (i: number) => String(anyRes.multiHandedness[i]?.label || '').toLowerCase();
+        // prefer right if within 2% score of best
+        let best = 0;
+        for (let i = 1; i < anyRes.multiHandedness.length; i++) if (score(i) > score(best)) best = i;
+        const rightIdx = anyRes.multiHandedness.findIndex((h: any) => String(h?.label||'').toLowerCase().includes('right'));
+        if (rightIdx >= 0 && Math.abs(score(rightIdx) - score(best)) <= 0.02) chosenIdx = rightIdx; else chosenIdx = best;
+      }
+      const landmarks = results.multiHandLandmarks[chosenIdx];
       try {
-        const anyRes: any = results as any;
-        // Prefer the first detected hand's label; mirror-safe
-        let side: 'left' | 'right' | null = null;
-        const handedArr = (anyRes.multiHandedness || []);
-        if (handedArr.length) {
-          const lbl = String(handedArr[0]?.label || '').toLowerCase();
-          side = (lbl.includes('right')) ? 'right' : (lbl.includes('left')) ? 'left' : null;
-        }
+        const lbl = String(anyRes.multiHandedness?.[chosenIdx]?.label || '').toLowerCase();
+        const side: 'left' | 'right' | null = lbl.includes('right') ? 'right' : lbl.includes('left') ? 'left' : null;
         (window as any).__HAND_SIDE = side;
-      } catch { }
+      } catch { (window as any).__HAND_SIDE = null; }
 
       // Index finger tip (8)
       const indexTip = landmarks[8];
