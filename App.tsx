@@ -38,6 +38,41 @@ const DEFAULT_CALIBRATION: CalibrationData = {
 };
 
 const App: React.FC = () => {
+  // Game State
+  const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  const [score, setScore] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [levels, setLevels] = useState<Level[]>(loadNorthstarLevels());
+  const baseLevelsRef = useRef<Level[]>([]);
+  const [quizState, setQuizState] = useState<{ q: number; correct: number; selected?: number }>({ q: 0, correct: 0 });
+  const [playTimer, setPlayTimer] = useState(0); // unused (no timer)
+  const [progress, setProgress] = useState<{ popped: number; target: number; active: number }>({ popped: 0, target: 10, active: 0 });
+  const tipIdxRef = useRef(0);
+
+  // Settings
+  const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
+  const [pdfLevels, setPdfLevels] = useState<Level[] | null>(null);
+  const [pdfFilename, setPdfFilename] = useState<string | null>(null);
+  const [showPdfUpload, setShowPdfUpload] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [calibration, setCalibration] = useState<CalibrationData>(DEFAULT_CALIBRATION);
+
+  // Input State
+  const [pointer, setPointer] = useState<Point>({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  const [isPinching, setIsPinching] = useState(false);
+  const [isHandDetected, setIsHandDetected] = useState(false);
+  const lastHandSeenRef = useRef<number>(0);
+  const [showHint, setShowHint] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notes, setNotes] = useState<string[]>([]);
+  const firstNoteOpenedRef = useRef(false);
+
+  // Calibration logic
+  const [calibrationStep, setCalibrationStep] = useState<0 | 1 | 2>(0); // 0: None, 1: Top-Left, 2: Bottom-Right
+  const [tempCalibration, setTempCalibration] = useState<{ tl?: Point, br?: Point }>({});
+
   // Screen dimensions & Mobile detection
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -520,24 +555,7 @@ const App: React.FC = () => {
     // keep state; player can press Start to play with new role
   }, [settings.role]);
 
-  // Webcam update handler
-  const handleWebcamUpdate = useCallback((newPoint: Point, pinching: boolean, detected: boolean) => {
-    if (!settings.useMouseFallback) {
-      setPointer(newPoint);
-      setIsPinching(pinching);
-      if (detected) {
-        lastHandSeenRef.current = Date.now();
-        setIsHandDetected(true);
-      } else {
-        const now = Date.now();
-        // Grace period to avoid flicker when tracking drops briefly
-        if (now - lastHandSeenRef.current > 1500) {
-          setIsHandDetected(false);
-        }
-      }
-      if (detected) setShowHint(false);
-    }
-  }, [settings.useMouseFallback]);
+
 
   // Additional guard: degrade detection if no frames for a while
   useEffect(() => {
