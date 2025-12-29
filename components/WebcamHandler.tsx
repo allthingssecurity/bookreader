@@ -25,10 +25,10 @@ declare global {
   }
 }
 
-const WebcamHandler: React.FC<WebcamHandlerProps> = ({ 
-  onUpdate, 
-  calibration, 
-  smoothingAmount, 
+const WebcamHandler: React.FC<WebcamHandlerProps> = ({
+  onUpdate,
+  calibration,
+  smoothingAmount,
   enabled,
   screenWidth,
   screenHeight,
@@ -36,7 +36,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
   blinkToFire = true,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const prevPointRef = useRef<Point>({ x: screenWidth/2, y: screenHeight/2 });
+  const prevPointRef = useRef<Point>({ x: screenWidth / 2, y: screenHeight / 2 });
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const blinkHoldUntilRef = useRef<number>(0);
@@ -71,15 +71,15 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       try {
         const anyRes: any = results as any;
         // Prefer the first detected hand's label; mirror-safe
-        let side: 'left'|'right'|null = null;
+        let side: 'left' | 'right' | null = null;
         const handedArr = (anyRes.multiHandedness || []);
         if (handedArr.length) {
           const lbl = String(handedArr[0]?.label || '').toLowerCase();
           side = (lbl.includes('right')) ? 'right' : (lbl.includes('left')) ? 'left' : null;
         }
         (window as any).__HAND_SIDE = side;
-      } catch {}
-      
+      } catch { }
+
       // Index finger tip (8)
       const indexTip = landmarks[8];
       // Thumb tip (4)
@@ -112,7 +112,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       // e.g. if minX is 0.1 and maxX is 0.9, we stretch that range to 0-1
       const rangeX = calibration.maxX - calibration.minX;
       const rangeY = calibration.maxY - calibration.minY;
-      
+
       const normX = (rawX - calibration.minX) / rangeX;
       const normY = (rawY - calibration.minY) / rangeY;
 
@@ -146,7 +146,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
         if (dzPalm < -depthThr) orient = 'front';
         else if (dzPalm > depthThr) orient = 'back';
         (window as any).__HAND_ORIENT = orient;
-      } catch {}
+      } catch { }
 
       onUpdate(newPoint, isPinching, true);
       setIsInitializing(false);
@@ -211,12 +211,12 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
         hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         hands.onResults(onResultsHands);
         if (videoRef.current) {
-          camera = new window.Camera(videoRef.current, { 
-            onFrame: async () => { 
+          camera = new window.Camera(videoRef.current, {
+            onFrame: async () => {
               if (!aliveRef.current || runIdRef.current !== localRunId) return;
               try { if (videoRef.current) await hands.send({ image: videoRef.current }); } catch (e) { /* ignore disposed errors */ }
-            }, 
-            width: 640, height: 480 
+            },
+            width: 640, height: 480
           });
           camera.start();
         }
@@ -227,12 +227,12 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
         face.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         face.onResults(onResultsFace);
         if (videoRef.current) {
-          camera = new window.Camera(videoRef.current, { 
-            onFrame: async () => { 
+          camera = new window.Camera(videoRef.current, {
+            onFrame: async () => {
               if (!aliveRef.current || runIdRef.current !== localRunId) return;
-              try { if (videoRef.current) await face.send({ image: videoRef.current }); } catch (e) {}
-            }, 
-            width: 640, height: 480 
+              try { if (videoRef.current) await face.send({ image: videoRef.current }); } catch (e) { }
+            },
+            width: 640, height: 480
           });
           camera.start();
         }
@@ -246,36 +246,41 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
     return () => {
       aliveRef.current = false;
       const id = localRunId;
-      try { if (camera) camera.stop(); } catch {}
-      try { if (hands && runIdRef.current === id) hands.close(); } catch {}
-      try { if (face && runIdRef.current === id) face.close(); } catch {}
+      try { if (camera) camera.stop(); } catch { }
+      try { if (hands && runIdRef.current === id) hands.close(); } catch { }
+      try { if (face && runIdRef.current === id) face.close(); } catch { }
     };
   }, [enabled, calibration, smoothingAmount, screenWidth, screenHeight, inputMode, blinkToFire]);
 
   if (!enabled) return null;
 
+  // On mobile, we might want to hide the debug view to save space/confusion
+  const isMobile = screenWidth < 768;
+
   return (
     <>
       {/* Hidden video element for processing */}
-      <video 
-        ref={videoRef} 
-        className="hidden" 
-        playsInline 
+      <video
+        ref={videoRef}
+        className="hidden"
+        playsInline
         muted
-        style={{ transform: 'scaleX(-1)' }} // Mirror locally if we were showing it
+        style={{ display: 'none' }} // Explicitly hide
       />
-      
-      {/* Small PIP debug view (optional, good for user trust/feedback) */}
-      <div className="fixed bottom-4 right-4 w-32 h-24 bg-black rounded-lg border-2 border-slate-700 overflow-hidden opacity-50 hover:opacity-100 transition-opacity z-40 pointer-events-none">
-        <video 
+
+      {/* Small PIP debug view - Desktop only */}
+      {!isMobile && (
+        <div className="fixed bottom-4 right-4 w-32 h-24 bg-black rounded-lg border-2 border-slate-700 overflow-hidden opacity-50 hover:opacity-100 transition-opacity z-40 pointer-events-none">
+          <video
             ref={(el) => {
-                if (el && videoRef.current) el.srcObject = videoRef.current.srcObject;
+              if (el && videoRef.current) el.srcObject = videoRef.current.srcObject;
             }}
-            autoPlay 
+            autoPlay
             className="w-full h-full object-cover transform scale-x-[-1]"
-        />
-        {error && <div className="absolute inset-0 flex items-center justify-center bg-red-500/80 text-white text-xs p-1">{error}</div>}
-      </div>
+          />
+          {error && <div className="absolute inset-0 flex items-center justify-center bg-red-500/80 text-white text-xs p-1">{error}</div>}
+        </div>
+      )}
     </>
   );
 };
