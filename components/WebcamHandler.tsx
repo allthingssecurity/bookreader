@@ -51,7 +51,8 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
   const smoothingRef = useRef(smoothingAmount);
   const blinkRef = useRef(blinkToFire);
   const dutyOnRef = useRef<boolean>(true);
-  const dutyTimersRef = useRef<number[]>([]);
+  const dutyIntervalRef = useRef<number | null>(null);
+  const dutyOffTimeoutRef = useRef<number | null>(null);
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
 
   useEffect(() => {
@@ -323,24 +324,32 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
   // Start/stop duty cycle on iOS to reduce continuous GPU/wasm load
   useEffect(() => {
     if (!enabled || !isIOS) return;
-    // Duty cycle: on 700ms, off 2300ms
-    const onMs = 700;
-    const offMs = 2300;
-    const schedule = () => {
+    // Duty cycle: on 600ms, off 2800ms (single interval + one inner timeout)
+    const onMs = 600;
+    const offMs = 2800;
+    const period = onMs + offMs;
+
+    const tick = () => {
+      // Turn on
       dutyOnRef.current = true;
       (window as any).__CAMERA_PAUSED = false;
-      const t1 = window.setTimeout(() => {
+      // Schedule off
+      if (dutyOffTimeoutRef.current) clearTimeout(dutyOffTimeoutRef.current);
+      dutyOffTimeoutRef.current = window.setTimeout(() => {
         dutyOnRef.current = false;
         (window as any).__CAMERA_PAUSED = true;
-        const t2 = window.setTimeout(schedule, offMs);
-        dutyTimersRef.current.push(t2);
-      }, onMs);
-      dutyTimersRef.current.push(t1);
+      }, onMs) as unknown as number;
     };
-    schedule();
+
+    // Kick immediately and then repeat
+    tick();
+    if (dutyIntervalRef.current) clearInterval(dutyIntervalRef.current);
+    dutyIntervalRef.current = window.setInterval(tick, period) as unknown as number;
     return () => {
-      dutyTimersRef.current.forEach(id => clearTimeout(id));
-      dutyTimersRef.current = [];
+      if (dutyIntervalRef.current) clearInterval(dutyIntervalRef.current);
+      if (dutyOffTimeoutRef.current) clearTimeout(dutyOffTimeoutRef.current);
+      dutyIntervalRef.current = null;
+      dutyOffTimeoutRef.current = null;
       (window as any).__CAMERA_PAUSED = false;
       dutyOnRef.current = true;
     };

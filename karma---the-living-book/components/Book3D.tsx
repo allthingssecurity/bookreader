@@ -245,8 +245,8 @@ export const Book3D: React.FC<Book3DProps> = ({
   if (isMobile) {
     return (
       <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
-        {/* Single Centered Page */}
-        <div className="relative w-[90%] h-[80%] bg-[#fdfbf7] shadow-2xl border border-gray-300 rounded-sm overflow-hidden flex flex-col">
+        {/* Single Centered Page — no 3D transforms on iOS for stability */}
+        <div className="relative w-[92%] h-[84%] bg-[#fdfbf7] shadow-xl border border-gray-300 rounded-sm overflow-hidden flex flex-col will-change-auto">
           {/* Render current page content */}
           {/* On mobile, we just show the current page index. 
               If we are turning 'next', we might want to show the next page sliding in?
@@ -260,7 +260,7 @@ export const Book3D: React.FC<Book3DProps> = ({
           {renderPageContent(currentPage)}
 
           {/* Page Number Indicator */}
-          <div className="absolute bottom-2 right-4 text-xs text-gray-400">
+          <div className="absolute bottom-2 right-4 text-xs text-gray-500">
             {currentPage + 1} / {content.pages.length}
           </div>
         </div>
