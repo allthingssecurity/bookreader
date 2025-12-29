@@ -46,11 +46,18 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
   const screenWidthRef = useRef(screenWidth);
   const screenHeightRef = useRef(screenHeight);
+  // Live refs for dynamic settings without re-initializing MediaPipe
+  const calibrationRef = useRef(calibration);
+  const smoothingRef = useRef(smoothingAmount);
+  const blinkRef = useRef(blinkToFire);
 
   useEffect(() => {
     screenWidthRef.current = screenWidth;
     screenHeightRef.current = screenHeight;
   }, [screenWidth, screenHeight]);
+  useEffect(() => { calibrationRef.current = calibration; }, [calibration]);
+  useEffect(() => { smoothingRef.current = smoothingAmount; }, [smoothingAmount]);
+  useEffect(() => { blinkRef.current = blinkToFire; }, [blinkToFire]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -122,11 +129,12 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
       // Normalize based on calibration window
       // e.g. if minX is 0.1 and maxX is 0.9, we stretch that range to 0-1
-      const rangeX = calibration.maxX - calibration.minX;
-      const rangeY = calibration.maxY - calibration.minY;
+      const cal = calibrationRef.current;
+      const rangeX = cal.maxX - cal.minX;
+      const rangeY = cal.maxY - cal.minY;
 
-      const normX = (rawX - calibration.minX) / rangeX;
-      const normY = (rawY - calibration.minY) / rangeY;
+      const normX = (rawX - cal.minX) / rangeX;
+      const normY = (rawY - cal.minY) / rangeY;
 
       // Use current dimensions from ref
       const targetX = clamp(normX, 0, 1) * screenWidthRef.current;
@@ -140,8 +148,8 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       const scaledX = centerX + (targetX - centerX) * sens;
       const scaledY = centerY + (targetY - centerY) * sens;
 
-      const smoothedX = lerp(prevPointRef.current.x, scaledX, 1 - smoothingAmount); // higher amount = slower
-      const smoothedY = lerp(prevPointRef.current.y, scaledY, 1 - smoothingAmount);
+      const smoothedX = lerp(prevPointRef.current.x, scaledX, 1 - smoothingRef.current); // higher amount = slower
+      const smoothedY = lerp(prevPointRef.current.y, scaledY, 1 - smoothingRef.current);
 
       const newPoint = { x: smoothedX, y: smoothedY };
       prevPointRef.current = newPoint;
@@ -161,7 +169,9 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
         (window as any).__HAND_ORIENT = orient;
       } catch { }
 
-      onUpdate(newPoint, isPinching, true);
+      if (!(window as any).__CAMERA_PAUSED) {
+        onUpdate(newPoint, isPinching, true);
+      }
       setIsInitializing(false);
     };
 
@@ -180,10 +190,11 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       }
       const rawX = 1.0 - nose.x;
       const rawY = nose.y;
-      const rangeX = calibration.maxX - calibration.minX;
-      const rangeY = calibration.maxY - calibration.minY;
-      const normX = (rawX - calibration.minX) / rangeX;
-      const normY = (rawY - calibration.minY) / rangeY;
+      const cal = calibrationRef.current;
+      const rangeX = cal.maxX - cal.minX;
+      const rangeY = cal.maxY - cal.minY;
+      const normX = (rawX - cal.minX) / rangeX;
+      const normY = (rawY - cal.minY) / rangeY;
       const targetX = clamp(normX, 0, 1) * screenWidthRef.current;
       const targetY = clamp(normY, 0, 1) * screenHeightRef.current;
       const centerX = screenWidthRef.current / 2;
@@ -191,8 +202,8 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       const sens = (window as any).__APP_SENS || 1.0;
       const scaledX = centerX + (targetX - centerX) * sens;
       const scaledY = centerY + (targetY - centerY) * sens;
-      const smoothedX = lerp(prevPointRef.current.x, scaledX, 1 - smoothingAmount);
-      const smoothedY = lerp(prevPointRef.current.y, scaledY, 1 - smoothingAmount);
+      const smoothedX = lerp(prevPointRef.current.x, scaledX, 1 - smoothingRef.current);
+      const smoothedY = lerp(prevPointRef.current.y, scaledY, 1 - smoothingRef.current);
       const newPoint = { x: smoothedX, y: smoothedY };
       prevPointRef.current = newPoint;
 
@@ -204,7 +215,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       const l_h = dist(L_OUT, L_IN) + 1e-6; const l_v = dist(L_UP, L_DN);
       const r_h = dist(R_OUT, R_IN) + 1e-6; const r_v = dist(R_UP, R_DN);
       const l_ratio = l_v / l_h; const r_ratio = r_v / r_h;
-      const blink = blinkToFire && l_ratio < 0.20 && r_ratio < 0.20;
+      const blink = blinkRef.current && l_ratio < 0.20 && r_ratio < 0.20;
 
       // Hold pinch true briefly on blink for projectile power
       const now = performance.now();
@@ -213,7 +224,9 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
         blinkHoldUntilRef.current = now + 260;
       }
       const isPinching = blinkHoldUntilRef.current > now;
-      onUpdate(newPoint, isPinching, true);
+      if (!(window as any).__CAMERA_PAUSED) {
+        onUpdate(newPoint, isPinching, true);
+      }
       setIsInitializing(false);
     };
 
@@ -239,7 +252,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
           const targetWidth = isMobile ? 320 : 640;
           const targetHeight = isMobile ? 240 : 480;
           let frameCount = 0;
-          const skipFrames = isMobile ? 2 : 0; // Process every 3rd frame on mobile
+          const skipFrames = isMobile ? 3 : 0; // Process every 4th frame on mobile
 
           camera = new window.Camera(videoRef.current, {
             onFrame: async () => {
@@ -250,6 +263,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
               if (frameCount % (skipFrames + 1) !== 0) return;
 
               try {
+                if ((window as any).__CAMERA_PAUSED) return;
                 if (videoRef.current) await hands.send({ image: videoRef.current });
               } catch (e) { /* ignore disposed errors */ }
             },
@@ -267,7 +281,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
           camera = new window.Camera(videoRef.current, {
             onFrame: async () => {
               if (!aliveRef.current || runIdRef.current !== localRunId) return;
-              try { if (videoRef.current) await face.send({ image: videoRef.current }); } catch (e) { }
+              try { if ((window as any).__CAMERA_PAUSED) return; if (videoRef.current) await face.send({ image: videoRef.current }); } catch (e) { }
             },
             width: 640, height: 480
           });
@@ -284,10 +298,12 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       aliveRef.current = false;
       const id = localRunId;
       try { if (camera) camera.stop(); } catch { }
-      try { if (hands && runIdRef.current === id) hands.close(); } catch { }
-      try { if (face && runIdRef.current === id) face.close(); } catch { }
+      try { if (videoRef.current) { (videoRef.current as any).srcObject = null; } } catch { }
+      try { if (hands && runIdRef.current === id) { hands.onResults(() => {}); hands.close(); } } catch { }
+      try { if (face && runIdRef.current === id) { face.onResults(() => {}); face.close(); } } catch { }
+      runIdRef.current = null;
     };
-  }, [enabled, calibration, smoothingAmount, inputMode, blinkToFire]);
+  }, [enabled, inputMode]);
 
   if (!enabled) return null;
 
