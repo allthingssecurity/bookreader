@@ -204,19 +204,43 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       setIsInitializing(false);
     };
 
+    const isMobile = screenWidth < 768;
+
     try {
       if (inputMode === 'hands') {
         if (!window.Hands) throw new Error('MediaPipe Hands not loaded');
         hands = new window.Hands({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+
+        // Mobile Optimization: Use Lite model (0) and lower complexity
+        hands.setOptions({
+          maxNumHands: isMobile ? 1 : 2, // Only track 1 hand on mobile
+          modelComplexity: isMobile ? 0 : 1, // Lite model on mobile
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
         hands.onResults(onResultsHands);
+
         if (videoRef.current) {
+          // Mobile Optimization: Lower resolution and frame skipping
+          const targetWidth = isMobile ? 320 : 640;
+          const targetHeight = isMobile ? 240 : 480;
+          let frameCount = 0;
+          const skipFrames = isMobile ? 2 : 0; // Process every 3rd frame on mobile
+
           camera = new window.Camera(videoRef.current, {
             onFrame: async () => {
               if (!aliveRef.current || runIdRef.current !== localRunId) return;
-              try { if (videoRef.current) await hands.send({ image: videoRef.current }); } catch (e) { /* ignore disposed errors */ }
+
+              // Frame skipping logic
+              frameCount++;
+              if (frameCount % (skipFrames + 1) !== 0) return;
+
+              try {
+                if (videoRef.current) await hands.send({ image: videoRef.current });
+              } catch (e) { /* ignore disposed errors */ }
             },
-            width: 640, height: 480
+            width: targetWidth, height: targetHeight
           });
           camera.start();
         }
