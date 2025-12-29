@@ -8,6 +8,7 @@ interface Book3DProps {
   isGestureActive: boolean;
   onPageTurnComplete: (newPage: number) => void;
   currentPage: number;
+  isMobile?: boolean;
 }
 
 export const Book3D: React.FC<Book3DProps> = ({
@@ -15,7 +16,8 @@ export const Book3D: React.FC<Book3DProps> = ({
   gestureSignal,
   isGestureActive,
   onPageTurnComplete,
-  currentPage
+  currentPage,
+  isMobile = false
 }) => {
   // Visual state
   const [currentRotation, setCurrentRotation] = useState(0); // 0 to -180
@@ -231,6 +233,34 @@ export const Book3D: React.FC<Book3DProps> = ({
   const rotAbs = Math.min(180, Math.max(0, Math.abs(movingPageRotation)));
   const curlT = rotAbs / 180;
 
+  // Mobile Single Page View
+  if (isMobile) {
+    return (
+      <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
+        {/* Single Centered Page */}
+        <div className="relative w-[90%] h-[80%] bg-[#fdfbf7] shadow-2xl border border-gray-300 rounded-sm overflow-hidden flex flex-col">
+          {/* Render current page content */}
+          {/* On mobile, we just show the current page index. 
+              If we are turning 'next', we might want to show the next page sliding in?
+              For simplicity with 3D logic, let's keep it simple: 
+              Just show the current page. The 'flip' animation is hard to map 1:1 to single view without a full rewrite.
+              Instead, we can just use a simple slide or fade, or just update content.
+              But to keep the 'gesture' feel, let's try to show the 3D effect but centered? 
+              Actually, single page 3D flip is complex. Let's stick to a static view that updates, 
+              maybe with a slide transition if possible, or just the content update.
+          */}
+          {renderPageContent(currentPage)}
+
+          {/* Page Number Indicator */}
+          <div className="absolute bottom-2 right-4 text-xs text-gray-400">
+            {currentPage + 1} / {content.pages.length}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop Double Page View (Existing Logic)
   return (
     <div className="relative w-full max-w-5xl h-[80vh] flex justify-center items-center perspective-2000 select-none">
       <style>{`

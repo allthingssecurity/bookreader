@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Level, Point } from '../types';
 import { BookContent, BookPage } from '../karma---the-living-book/types';
 import { Book3D } from '../karma---the-living-book/components/Book3D';
+import { loadDocxLevels } from '../content/docxLevels';
 
 interface BookViewProps {
   levels?: Level[];
@@ -9,6 +10,7 @@ interface BookViewProps {
   isPinching: boolean;
   onChapterQuiz?: (chapterIndex: number) => void;
   bookTitle?: string;
+  isMobile?: boolean;
 }
 
 // Build a minimal book from levels: each chapter -> 2 pages (title + content)
@@ -106,7 +108,7 @@ const buildBook = (levels: Level[], bookTitle?: string): { book: BookContent; pa
   return { book, pagesPerChapter: 0 }; // variable per chapter now
 };
 
-const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, isPinching, onChapterQuiz, bookTitle }) => {
+const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, isPinching, onChapterQuiz, bookTitle, isMobile = false }) => {
   const [levels, setLevels] = useState<Level[]>([]);
 
   useEffect(() => {
@@ -333,9 +335,10 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
         isGestureActive={active}
         onPageTurnComplete={handleTurnComplete}
         currentPage={currentPage}
+        isMobile={isMobile}
       />
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/40 text-white px-4 py-2 rounded-full text-sm pointer-events-none flex items-center gap-3">
-        <span>Living Book • Page {currentPage + 1} / {book.pages.length}</span>
+      <div className={`absolute ${isMobile ? 'bottom-8' : 'top-6'} left-1/2 -translate-x-1/2 bg-black/40 text-white px-4 py-2 rounded-full text-sm pointer-events-none flex items-center gap-3 whitespace-nowrap`}>
+        <span>{book.title} • Page {currentPage + 1} / {book.pages.length}</span>
         {detectedSide && (
           <span className="inline-flex items-center gap-2 ml-2 px-2 py-0.5 bg-white/20 rounded-full">
             <span className="text-xs uppercase tracking-wider font-bold opacity-90">
@@ -347,9 +350,11 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
       </div>
 
       {/* Debug indicator for raw hand side */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-red-500/80 text-white px-3 py-1 rounded text-xs font-mono pointer-events-none">
-        DEBUG: __HAND_SIDE = {String((window as any).__HAND_SIDE || 'null')}
-      </div>
+      {!isMobile && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-red-500/80 text-white px-3 py-1 rounded text-xs font-mono pointer-events-none">
+          DEBUG: __HAND_SIDE = {String((window as any).__HAND_SIDE || 'null')}
+        </div>
+      )}
     </div>
   );
 };
