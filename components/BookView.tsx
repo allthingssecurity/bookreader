@@ -190,9 +190,7 @@ const BookView: React.FC<BookViewProps> = ({ levels: providedLevels, pointer, is
         const rawSide = (window as any).__HAND_SIDE as ('left' | 'right' | null);
 
         // Log occasionally
-        if (Math.random() < 0.016) {
-          console.log(`👋 Hand tracking: raw=${rawSide}`);
-        }
+        // Silence heavy logs on mobile/Safari to avoid console overhead
         // Throttle HUD updates to avoid setState every frame
         const nowTs = performance.now();
         if (rawSide !== lastSideRef.current || nowTs - lastSidePostTsRef.current > 250) {

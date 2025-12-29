@@ -50,6 +50,9 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
   const calibrationRef = useRef(calibration);
   const smoothingRef = useRef(smoothingAmount);
   const blinkRef = useRef(blinkToFire);
+  const dutyOnRef = useRef<boolean>(true);
+  const dutyTimersRef = useRef<number[]>([]);
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
 
   useEffect(() => {
     screenWidthRef.current = screenWidth;
@@ -72,6 +75,10 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
     const onResultsHands = (results: Results) => {
       if (runIdRef.current !== localRunId || !aliveRef.current) return;
+      // Duty-cycle gate to reduce load on iOS Safari
+      if ((window as any).__CAMERA_PAUSED || (!dutyOnRef.current && isIOS)) {
+        return;
+      }
       if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
         onUpdate(prevPointRef.current, false, false);
         (window as any).__HAND_ORIENT = 'neutral';
@@ -177,6 +184,9 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
     const onResultsFace = (results: any) => {
       if (runIdRef.current !== localRunId || !aliveRef.current) return;
+      if ((window as any).__CAMERA_PAUSED || (!dutyOnRef.current && isIOS)) {
+        return;
+      }
       if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
         onUpdate(prevPointRef.current, false, false);
         return;
@@ -239,8 +249,9 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
         // Mobile Optimization: Use Lite model (0) and lower complexity
         hands.setOptions({
-          maxNumHands: isMobile ? 1 : 2, // Only track 1 hand on mobile
-          modelComplexity: isMobile ? 0 : 1, // Lite model on mobile
+          selfieMode: true,
+          maxNumHands: 1, // force 1 on mobile to reduce load
+          modelComplexity: 0, // Lite model
           minDetectionConfidence: 0.5,
           minTrackingConfidence: 0.5
         });
@@ -249,10 +260,10 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
         if (videoRef.current) {
           // Mobile Optimization: Lower resolution and frame skipping
-          const targetWidth = isMobile ? 320 : 640;
-          const targetHeight = isMobile ? 240 : 480;
+          const targetWidth = (isIOS ? 224 : (isMobile ? 320 : 640));
+          const targetHeight = (isIOS ? 168 : (isMobile ? 240 : 480));
           let frameCount = 0;
-          const skipFrames = isMobile ? 3 : 0; // Process every 4th frame on mobile
+          const skipFrames = isIOS ? 4 : (isMobile ? 3 : 0); // iOS: every 5th frame
 
           camera = new window.Camera(videoRef.current, {
             onFrame: async () => {
@@ -264,6 +275,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
               try {
                 if ((window as any).__CAMERA_PAUSED) return;
+                if (!dutyOnRef.current && isIOS) return;
                 if (videoRef.current) await hands.send({ image: videoRef.current });
               } catch (e) { /* ignore disposed errors */ }
             },
@@ -281,7 +293,7 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
           camera = new window.Camera(videoRef.current, {
             onFrame: async () => {
               if (!aliveRef.current || runIdRef.current !== localRunId) return;
-              try { if ((window as any).__CAMERA_PAUSED) return; if (videoRef.current) await face.send({ image: videoRef.current }); } catch (e) { }
+              try { if ((window as any).__CAMERA_PAUSED) return; if (!dutyOnRef.current && isIOS) return; if (videoRef.current) await face.send({ image: videoRef.current }); } catch (e) { }
             },
             width: 640, height: 480
           });
@@ -302,8 +314,37 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       try { if (hands && runIdRef.current === id) { hands.onResults(() => {}); hands.close(); } } catch { }
       try { if (face && runIdRef.current === id) { face.onResults(() => {}); face.close(); } } catch { }
       runIdRef.current = null;
+      // Clear duty cycle timers
+      dutyTimersRef.current.forEach(id => clearTimeout(id));
+      dutyTimersRef.current = [];
     };
   }, [enabled, inputMode]);
+
+  // Start/stop duty cycle on iOS to reduce continuous GPU/wasm load
+  useEffect(() => {
+    if (!enabled || !isIOS) return;
+    // Duty cycle: on 700ms, off 2300ms
+    const onMs = 700;
+    const offMs = 2300;
+    const schedule = () => {
+      dutyOnRef.current = true;
+      (window as any).__CAMERA_PAUSED = false;
+      const t1 = window.setTimeout(() => {
+        dutyOnRef.current = false;
+        (window as any).__CAMERA_PAUSED = true;
+        const t2 = window.setTimeout(schedule, offMs);
+        dutyTimersRef.current.push(t2);
+      }, onMs);
+      dutyTimersRef.current.push(t1);
+    };
+    schedule();
+    return () => {
+      dutyTimersRef.current.forEach(id => clearTimeout(id));
+      dutyTimersRef.current = [];
+      (window as any).__CAMERA_PAUSED = false;
+      dutyOnRef.current = true;
+    };
+  }, [enabled, isIOS]);
 
   if (!enabled) return null;
 

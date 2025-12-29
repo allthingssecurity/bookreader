@@ -38,7 +38,7 @@ export const Book3D: React.FC<Book3DProps> = ({
     if (!isGestureActive) return;
 
     const delta = gestureSignal.value;
-    console.log(`📚 Book3D received gesture: delta=${delta}, id=${gestureSignal.id}, currentPage=${currentPage}/${content.pages.length - 1}, turningDirection=${turningDirection}`);
+    // Quiet verbose logging for mobile stability
     if (delta === 0) return;
 
     // Sensitivity factor - reduced slightly to feel "heavier" and less jittery
@@ -89,6 +89,10 @@ export const Book3D: React.FC<Book3DProps> = ({
   // Handle Gesture Release (Snap)
   useEffect(() => {
     if (!isGestureActive && turningDirection) {
+      // Pause camera processing during snap to reduce peak load (if gate exists)
+      const hadGate = (window as any).__CAMERA_PAUSED !== undefined;
+      const prevGate = (window as any).__CAMERA_PAUSED;
+      (window as any).__CAMERA_PAUSED = true;
       const threshold = -90; // Midpoint
 
       let targetRot = 0;
@@ -142,7 +146,11 @@ export const Book3D: React.FC<Book3DProps> = ({
       };
       animateSnap();
 
-      return () => cancelAnimationFrame(animationFrame);
+      return () => {
+        cancelAnimationFrame(animationFrame);
+        // Resume camera after snap completes (let next event tick run first)
+        setTimeout(() => { (window as any).__CAMERA_PAUSED = hadGate ? prevGate : false; }, 50);
+      };
     }
   }, [isGestureActive, turningDirection, currentRotation, currentPage, onPageTurnComplete]);
 
