@@ -279,32 +279,10 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
     return () => {
       aliveRef.current = false;
       const id = localRunId;
-      // Aggressive cleanup
-      try {
-        if (camera) {
-          camera.stop();
-          camera = null;
-        }
-      } catch { }
-
-      try {
-        if (hands && runIdRef.current === id) {
-          hands.close();
-          hands = null;
-        }
-      } catch { }
-
-      try {
-        if (face && runIdRef.current === id) {
-          face.close();
-          face = null;
-        }
-      } catch { }
-
-      // Force GC hint if possible (not standard JS but clearing refs helps)
-      (window as any).__HAND_SIDE = null;
+      try { if (camera) camera.stop(); } catch { }
+      try { if (hands && runIdRef.current === id) hands.close(); } catch { }
+      try { if (face && runIdRef.current === id) face.close(); } catch { }
     };
-    // REMOVED screenWidth and screenHeight from dependencies to prevent re-init on resize
   }, [enabled, calibration, smoothingAmount, inputMode, blinkToFire]);
 
   if (!enabled) return null;
