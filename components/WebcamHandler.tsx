@@ -44,6 +44,14 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
   const aliveRef = useRef<boolean>(false);
   const runIdRef = useRef<symbol | null>(null);
 
+  const screenWidthRef = useRef(screenWidth);
+  const screenHeightRef = useRef(screenHeight);
+
+  useEffect(() => {
+    screenWidthRef.current = screenWidth;
+    screenHeightRef.current = screenHeight;
+  }, [screenWidth, screenHeight]);
+
   useEffect(() => {
     if (!enabled) return;
     if (!videoRef.current) return;
@@ -116,13 +124,14 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       const normX = (rawX - calibration.minX) / rangeX;
       const normY = (rawY - calibration.minY) / rangeY;
 
-      const targetX = clamp(normX, 0, 1) * screenWidth;
-      const targetY = clamp(normY, 0, 1) * screenHeight;
+      // Use current dimensions from ref
+      const targetX = clamp(normX, 0, 1) * screenWidthRef.current;
+      const targetY = clamp(normY, 0, 1) * screenHeightRef.current;
 
       // Smooth Movement
       // Apply sensitivity scaling (faster cursor reach if configured)
-      const centerX = screenWidth / 2;
-      const centerY = screenHeight / 2;
+      const centerX = screenWidthRef.current / 2;
+      const centerY = screenHeightRef.current / 2;
       const sens = (window as any).__APP_SENS || 1.0;
       const scaledX = centerX + (targetX - centerX) * sens;
       const scaledY = centerY + (targetY - centerY) * sens;
@@ -171,10 +180,10 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
       const rangeY = calibration.maxY - calibration.minY;
       const normX = (rawX - calibration.minX) / rangeX;
       const normY = (rawY - calibration.minY) / rangeY;
-      const targetX = clamp(normX, 0, 1) * screenWidth;
-      const targetY = clamp(normY, 0, 1) * screenHeight;
-      const centerX = screenWidth / 2;
-      const centerY = screenHeight / 2;
+      const targetX = clamp(normX, 0, 1) * screenWidthRef.current;
+      const targetY = clamp(normY, 0, 1) * screenHeightRef.current;
+      const centerX = screenWidthRef.current / 2;
+      const centerY = screenHeightRef.current / 2;
       const sens = (window as any).__APP_SENS || 1.0;
       const scaledX = centerX + (targetX - centerX) * sens;
       const scaledY = centerY + (targetY - centerY) * sens;
