@@ -292,14 +292,24 @@ const WebcamHandler: React.FC<WebcamHandlerProps> = ({
 
   return (
     <>
-      {/* Hidden video element for processing */}
+      {/* 
+        Hidden video element for processing.
+        IMPORTANT: Do NOT use display:none, as it stops video playback/processing on some mobile browsers (iOS).
+        Use opacity:0 and fixed position instead.
+      */}
       <video
         ref={videoRef}
-        className="hidden"
+        className="fixed top-0 left-0 w-1 h-1 -z-50 opacity-0 pointer-events-none"
         playsInline
         muted
-        style={{ display: 'none' }} // Explicitly hide
       />
+
+      {/* Mobile Error Toast */}
+      {isMobile && error && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-4 py-2 rounded-lg text-sm z-50 max-w-[90%] text-center shadow-lg backdrop-blur-sm">
+          ⚠️ Camera Error: {error}
+        </div>
+      )}
 
       {/* Small PIP debug view - Desktop only */}
       {!isMobile && (
